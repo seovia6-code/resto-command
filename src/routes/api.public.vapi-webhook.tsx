@@ -15,7 +15,7 @@ function json(body: unknown, status = 200) {
 }
 
 type CallIntent = 'booking' | 'order' | 'enquiry' | 'complaint' | 'other';
-type CallOutcome = 'resolved' | 'failed' | 'transferred' | 'voicemail';
+type CallOutcome = 'resolved' | 'booked' | 'missed' | 'failed' | 'transferred';
 
 interface VapiPayload {
   restaurant_id?: string;
