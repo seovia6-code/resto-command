@@ -2,20 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
-import {
-  PhoneCall, MessageCircle, CalendarCheck, ShoppingBag, IndianRupee, AlertTriangle,
-} from "lucide-react";
+import { LoadingState, EmptyState } from "@/components/States";
+import { PhoneCall, MessageCircle, CalendarCheck, ShoppingBag, IndianRupee, AlertTriangle } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
   LineChart, Line, AreaChart, Area,
 } from "recharts";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  stats, callVsWhatsApp, dailyBookings, dailyOrders, dailyRevenue,
-  bookings, orders, calls, chats,
-} from "@/lib/sample-data";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDashboardData, useRestaurantId } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,6 +23,7 @@ export const Route = createFileRoute("/")({
 
 const axis = { stroke: "var(--muted-foreground)", fontSize: 12 };
 const grid = "var(--border)";
+const tooltipStyle = { background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 };
 
 function ChartCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
@@ -42,168 +37,6 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
   );
 }
 
-function Dashboard() {
-  return (
-    <AppLayout title="Dashboard">
-      <div className="space-y-6">
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-          <StatCard label="Total Calls" value={stats.totalCalls.toLocaleString()} change="12.4% this week" trend="up" icon={PhoneCall} tone="info" />
-          <StatCard label="WhatsApp Chats" value={stats.totalWhatsApp.toLocaleString()} change="18.2% this week" trend="up" icon={MessageCircle} tone="success" />
-          <StatCard label="Bookings" value={stats.totalBookings} change="6.1% this week" trend="up" icon={CalendarCheck} tone="primary" />
-          <StatCard label="Orders" value={stats.totalOrders} change="9.3% this week" trend="up" icon={ShoppingBag} tone="accent" />
-          <StatCard label="Revenue" value={`₹${stats.totalRevenue.toLocaleString()}`} change="14.8% this week" trend="up" icon={IndianRupee} tone="success" />
-          <StatCard label="Failed Requests" value={stats.failedRequests} change="3.2% this week" trend="down" icon={AlertTriangle} tone="destructive" />
-        </div>
-
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Calls vs WhatsApp" subtitle="Last 7 days">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={callVsWhatsApp}>
-                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" {...axis} tickLine={false} axisLine={false} />
-                <YAxis {...axis} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="calls" fill="var(--chart-3)" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="whatsapp" fill="var(--chart-2)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Daily Revenue" subtitle="Last 7 days (₹)">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyRevenue}>
-                <defs>
-                  <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.45} />
-                    <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" {...axis} tickLine={false} axisLine={false} />
-                <YAxis {...axis} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                <Area type="monotone" dataKey="revenue" stroke="var(--chart-1)" strokeWidth={2.5} fill="url(#rev)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Daily Bookings" subtitle="Last 7 days">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dailyBookings}>
-                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" {...axis} tickLine={false} axisLine={false} />
-                <YAxis {...axis} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                <Bar dataKey="bookings" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-
-          <ChartCard title="Daily Orders" subtitle="Last 7 days">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyOrders}>
-                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="day" {...axis} tickLine={false} axisLine={false} />
-                <YAxis {...axis} tickLine={false} axisLine={false} />
-                <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                <Line type="monotone" dataKey="orders" stroke="var(--chart-4)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        </div>
-
-        {/* Tables */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <RecentTable title="Recent Bookings">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Guest</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Pax</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bookings.slice(0, 5).map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell className="font-medium">{b.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{b.date} · {b.time}</TableCell>
-                  <TableCell>{b.guests}</TableCell>
-                  <TableCell><StatusBadge status={b.status} /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </RecentTable>
-
-          <RecentTable title="Recent Orders">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.slice(0, 5).map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell className="font-medium">{o.customer}</TableCell>
-                  <TableCell className="text-muted-foreground">{o.type}</TableCell>
-                  <TableCell>₹{o.total}</TableCell>
-                  <TableCell><StatusBadge status={o.status} /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </RecentTable>
-
-          <RecentTable title="Recent Calls">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Caller</TableHead>
-                <TableHead>Intent</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Outcome</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {calls.slice(0, 5).map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.caller}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.intent}</TableCell>
-                  <TableCell>{c.duration}</TableCell>
-                  <TableCell><StatusBadge status={c.outcome} /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </RecentTable>
-
-          <RecentTable title="Recent WhatsApp Chats">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Contact</TableHead>
-                <TableHead>Last message</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {chats.slice(0, 5).map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell className="font-medium">{c.contact}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-[220px] truncate">{c.lastMessage}</TableCell>
-                  <TableCell><StatusBadge status={c.status} /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </RecentTable>
-        </div>
-      </div>
-    </AppLayout>
-  );
-}
-
 function RecentTable({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border bg-card shadow-[var(--shadow-card)] overflow-hidden">
@@ -214,5 +47,162 @@ function RecentTable({ title, children }: { title: string; children: React.React
         <Table>{children}</Table>
       </div>
     </div>
+  );
+}
+
+function Dashboard() {
+  const { data: rid, isLoading: ridLoading } = useRestaurantId();
+  const { data, isLoading } = useDashboardData(rid);
+
+  if (ridLoading || isLoading || !data) {
+    return <AppLayout title="Dashboard"><LoadingState label="Loading your restaurant..." /></AppLayout>;
+  }
+
+  const { stats, charts, recentBookings, recentOrders, recentCalls, recentChats } = data;
+
+  return (
+    <AppLayout title="Dashboard">
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+          <StatCard label="Total Calls" value={stats.totalCalls.toLocaleString()} icon={PhoneCall} tone="info" />
+          <StatCard label="WhatsApp Chats" value={stats.totalWhatsApp.toLocaleString()} icon={MessageCircle} tone="success" />
+          <StatCard label="Bookings" value={stats.totalBookings} icon={CalendarCheck} tone="primary" />
+          <StatCard label="Orders" value={stats.totalOrders} icon={ShoppingBag} tone="accent" />
+          <StatCard label="Revenue" value={`₹${stats.totalRevenue.toLocaleString()}`} icon={IndianRupee} tone="success" />
+          <StatCard label="Failed Requests" value={stats.failedRequests} icon={AlertTriangle} tone="destructive" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <ChartCard title="Calls vs WhatsApp" subtitle="Last 7 days">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={charts.callVsWhatsApp}>
+                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" {...axis} tickLine={false} axisLine={false} />
+                <YAxis {...axis} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="calls" fill="var(--chart-3)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="whatsapp" fill="var(--chart-2)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard title="Daily Revenue" subtitle="Last 7 days (₹, delivered)">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={charts.dailyRevenue}>
+                <defs>
+                  <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" {...axis} tickLine={false} axisLine={false} />
+                <YAxis {...axis} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Area type="monotone" dataKey="revenue" stroke="var(--chart-1)" strokeWidth={2.5} fill="url(#rev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard title="Daily Bookings" subtitle="Last 7 days">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={charts.dailyBookings}>
+                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" {...axis} tickLine={false} axisLine={false} />
+                <YAxis {...axis} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="bookings" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard title="Daily Orders" subtitle="Last 7 days">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={charts.dailyOrders}>
+                <CartesianGrid stroke={grid} strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="day" {...axis} tickLine={false} axisLine={false} />
+                <YAxis {...axis} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Line type="monotone" dataKey="orders" stroke="var(--chart-4)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <RecentTable title="Recent Bookings">
+            <TableHeader><TableRow>
+              <TableHead>Guest</TableHead><TableHead>Date</TableHead><TableHead>Pax</TableHead><TableHead>Status</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {recentBookings.length === 0 ? (
+                <TableRow><TableCell colSpan={4}><EmptyState title="No bookings yet" /></TableCell></TableRow>
+              ) : recentBookings.map((b: any) => (
+                <TableRow key={b.id}>
+                  <TableCell className="font-medium">{b.guest_name}</TableCell>
+                  <TableCell className="text-muted-foreground">{b.booking_date} · {String(b.booking_time).slice(0, 5)}</TableCell>
+                  <TableCell>{b.party_size}</TableCell>
+                  <TableCell><StatusBadge status={b.status} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </RecentTable>
+
+          <RecentTable title="Recent Orders">
+            <TableHeader><TableRow>
+              <TableHead>Customer</TableHead><TableHead>Type</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {recentOrders.length === 0 ? (
+                <TableRow><TableCell colSpan={4}><EmptyState title="No orders yet" /></TableCell></TableRow>
+              ) : recentOrders.map((o: any) => (
+                <TableRow key={o.id}>
+                  <TableCell className="font-medium">{o.customer_name}</TableCell>
+                  <TableCell className="text-muted-foreground capitalize">{String(o.order_type).replace("_", "-")}</TableCell>
+                  <TableCell>₹{Number(o.total).toLocaleString()}</TableCell>
+                  <TableCell><StatusBadge status={o.status} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </RecentTable>
+
+          <RecentTable title="Recent Calls">
+            <TableHeader><TableRow>
+              <TableHead>Caller</TableHead><TableHead>Intent</TableHead><TableHead>Duration</TableHead><TableHead>Outcome</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {recentCalls.length === 0 ? (
+                <TableRow><TableCell colSpan={4}><EmptyState title="No calls yet" /></TableCell></TableRow>
+              ) : recentCalls.map((c: any) => (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.caller_name ?? "Unknown"}</TableCell>
+                  <TableCell className="text-muted-foreground capitalize">{c.intent}</TableCell>
+                  <TableCell>{Math.floor(c.duration_seconds / 60)}m {c.duration_seconds % 60}s</TableCell>
+                  <TableCell><StatusBadge status={c.outcome} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </RecentTable>
+
+          <RecentTable title="Recent WhatsApp Chats">
+            <TableHeader><TableRow>
+              <TableHead>Contact</TableHead><TableHead>Last message</TableHead><TableHead>Status</TableHead>
+            </TableRow></TableHeader>
+            <TableBody>
+              {recentChats.length === 0 ? (
+                <TableRow><TableCell colSpan={3}><EmptyState title="No chats yet" /></TableCell></TableRow>
+              ) : recentChats.map((c: any) => (
+                <TableRow key={c.id}>
+                  <TableCell className="font-medium">{c.contact_name ?? "Unknown"}</TableCell>
+                  <TableCell className="text-muted-foreground max-w-[220px] truncate">{c.last_message}</TableCell>
+                  <TableCell><StatusBadge status={c.status} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </RecentTable>
+        </div>
+      </div>
+    </AppLayout>
   );
 }
