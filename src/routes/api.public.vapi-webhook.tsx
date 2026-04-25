@@ -166,7 +166,7 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           const { data: call, error: callErr } = await supabaseAdmin
             .from('call_logs')
             .insert({
-              restaurant_id: restaurantId,
+              restaurant_id: restaurantId!,
               customer_id: customerId,
               conversation_id: convo.id,
               caller_name: payload.caller_name ?? null,
@@ -222,12 +222,12 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
             const { data: order, error: oErr } = await supabaseAdmin
               .from('orders')
               .insert({
-                restaurant_id: restaurantId,
+                restaurant_id: restaurantId!,
                 customer_id: customerId,
                 customer_name:
                   o.customer_name ?? payload.caller_name ?? 'Guest',
                 phone: payload.phone,
-                items: items as unknown as object,
+                items: items as never,
                 item_count: items.reduce((n, it) => n + (it.qty ?? 1), 0),
                 total,
                 status: 'preparing',
