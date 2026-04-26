@@ -125,6 +125,44 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           const normalizedIntent = (allowedIntents.includes(intentRaw) ? intentRaw : 'other') as CallIntent;
 
           const vCallAny = vCall as any;
+          const transcriptText: string | null =
+            raw?.transcript ?? m?.transcript ?? null;
+
+          // Try several VAPI shapes for caller name, then fall back to
+          // extracting it from the transcript ("My name is X", "I'm X", "This is X").
+          function extractNameFromTranscript(t: string | null): string | null {
+            if (!t) return null;
+            const patterns = [
+              /(?:my name is|i am|i'm|this is|name's|name is)\s+([A-Z][a-zA-Z'’-]+(?:\s+[A-Z][a-zA-Z'’-]+){0,2})/i,
+              /\bcaller(?:'s)?\s+name[:\-]?\s+([A-Z][a-zA-Z'’-]+(?:\s+[A-Z][a-zA-Z'’-]+){0,2})/i,
+            ];
+            for (const re of patterns) {
+              const match = t.match(re);
+              if (match?.[1]) {
+                const name = match[1].trim();
+                // Filter junk like "Calling" / "Looking" false-positives
+                if (name.length >= 2 && !/^(calling|looking|trying|just|here)$/i.test(name)) {
+                  return name.replace(/\s+/g, ' ');
+                }
+              }
+            }
+            return null;
+          }
+
+          const sd = m?.analysis?.structuredData ?? {};
+          const resolvedName: string | null =
+            raw?.caller_name ??
+            vCustomer?.name ??
+            m?.customer?.name ??
+            sd?.caller_name ??
+            sd?.customer_name ??
+            sd?.name ??
+            sd?.guest_name ??
+            sd?.booking?.guest_name ??
+            sd?.order?.customer_name ??
+            extractNameFromTranscript(transcriptText) ??
+            null;
+
           const payload: VapiPayload = {
             restaurant_id: raw?.restaurant_id,
             phone:
@@ -133,8 +171,7 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
               m?.phoneNumber?.number ??
               vCallAny?.phoneNumber?.number ??
               '',
-            caller_name:
-              raw?.caller_name ?? vCustomer?.name ?? m?.customer?.name ?? null,
+            caller_name: resolvedName,
             intent: normalizedIntent,
             outcome: (raw?.outcome ?? (m?.endedReason === 'customer-ended-call' ? 'resolved' : undefined)) as CallOutcome | undefined,
             duration_seconds:
