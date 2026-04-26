@@ -243,3 +243,89 @@ function TestWebhookPanel({
     </div>
   );
 }
+
+function WhatsAppTestPanel() {
+  const sendTest = useServerFn(sendTestWhatsAppWebhook);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<TestResult | null>(null);
+
+  const onClick = async () => {
+    setLoading(true);
+    try {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userData.user) {
+        throw new Error("You must be signed in to send a test.");
+      }
+      const { data: rest, error: rErr } = await supabase
+        .from("restaurants")
+        .select("id")
+        .eq("owner_id", userData.user.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (rErr) throw rErr;
+      if (!rest?.id) {
+        throw new Error("No restaurant found for your account. Create one first in Settings.");
+      }
+      const res = await sendTest({ data: { restaurantId: rest.id } });
+      setResult(res);
+      if (res.ok) toast.success(`Webhook responded ${res.status}`);
+      else toast.error(`Webhook responded ${res.status || "error"}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Test failed: ${message}`);
+      setResult({
+        ok: false,
+        status: 0,
+        statusText: "Client error",
+        body: message,
+        url: "",
+        durationMs: 0,
+        secretConfigured: false,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Send test WhatsApp message</p>
+          <p className="text-xs text-muted-foreground">Inserts a sample WhatsApp conversation into your account.</p>
+        </div>
+        <Button type="button" onClick={onClick} disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending…
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4 mr-2" /> Send test
+            </>
+          )}
+        </Button>
+      </div>
+
+      {result && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded border font-mono ${statusTone(result.status)}`}>
+              {result.status || "ERR"} {result.statusText}
+            </span>
+            <span className="text-muted-foreground">{result.durationMs} ms</span>
+            {!result.secretConfigured && (
+              <span className="text-amber-600 dark:text-amber-400">⚠ WHATSAPP_WEBHOOK_SECRET not set on server</span>
+            )}
+          </div>
+          {result.body && (
+            <pre className="text-xs bg-background border rounded p-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
+              {result.body}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
