@@ -100,11 +100,39 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           if (!expected) {
             return json({ error: 'Webhook secret not configured' }, 500);
           }
-          const provided =
-            request.headers.get('x-vapi-secret') ||
-            request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+          const headerSecret = request.headers.get('x-vapi-secret');
+          const authHeader = request.headers.get('authorization');
+          const bearer = authHeader?.replace(/^Bearer\s+/i, '');
+          const provided = headerSecret || bearer;
+
           if (provided !== expected) {
-            return json({ error: 'Unauthorized' }, 401);
+            // Verbose diagnostics so we can see WHY VAPI requests are rejected.
+            const allHeaders: Record<string, string> = {};
+            request.headers.forEach((v, k) => {
+              // Redact obvious secret-bearing headers but keep their length.
+              const lower = k.toLowerCase();
+              allHeaders[k] =
+                lower.includes('secret') || lower.includes('auth') || lower.includes('signature')
+                  ? `<${v.length} chars>`
+                  : v;
+            });
+            console.warn('[vapi-webhook] AUTH FAILED', {
+              has_x_vapi_secret: !!headerSecret,
+              x_vapi_secret_len: headerSecret?.length ?? 0,
+              has_authorization: !!authHeader,
+              bearer_len: bearer?.length ?? 0,
+              expected_len: expected.length,
+              header_names: Array.from(request.headers.keys()),
+              headers: allHeaders,
+            });
+            return json(
+              {
+                error: 'Unauthorized',
+                hint: 'Webhook received but the x-vapi-secret header did not match VAPI_WEBHOOK_SECRET. Check server logs for header diagnostics.',
+                received_header_names: Array.from(request.headers.keys()),
+              },
+              401,
+            );
           }
 
           // --- Parse body ---
