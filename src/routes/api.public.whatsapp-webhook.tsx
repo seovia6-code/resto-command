@@ -428,6 +428,7 @@ export const Route = createFileRoute('/api/public/whatsapp-webhook')({
             customer_id: customerId,
             conversation_id: conversationId,
             whatsapp_log_id: chatLogId,
+            wamid: meta.isMeta ? meta.messageId : undefined,
             booking_id: bookingId,
             order_id: orderId,
           });
