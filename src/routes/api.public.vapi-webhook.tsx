@@ -108,9 +108,46 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           }
 
           // --- Parse body ---
-          const payload = (await request.json()) as VapiPayload;
-          if (!payload?.phone) {
-            return json({ error: 'phone is required' }, 400);
+          const raw = (await request.json()) as any;
+          console.log('[vapi-webhook] received payload keys:', Object.keys(raw ?? {}));
+
+          // Normalize: VAPI native end-of-call-report wraps everything in `message`.
+          // Accept either our flat shape OR VAPI's native shape.
+          const m = raw?.message ?? raw;
+          const call = m?.call ?? raw?.call ?? {};
+          const customer = m?.customer ?? call?.customer ?? {};
+
+          const intentRaw = (m?.analysis?.structuredData?.intent ?? m?.intent ?? raw?.intent ?? 'other') as string;
+          const allowedIntents = ['booking', 'order', 'enquiry', 'complaint', 'other'];
+          const intent = (allowedIntents.includes(intentRaw) ? intentRaw : 'other') as CallIntent;
+
+          const payload: VapiPayload = {
+            restaurant_id: raw?.restaurant_id,
+            phone:
+              raw?.phone ??
+              customer?.number ??
+              m?.phoneNumber?.number ??
+              call?.phoneNumber?.number ??
+              '',
+            caller_name:
+              raw?.caller_name ?? customer?.name ?? m?.customer?.name ?? null,
+            intent,
+            outcome: (raw?.outcome ?? (m?.endedReason === 'customer-ended-call' ? 'resolved' : undefined)) as CallOutcome | undefined,
+            duration_seconds:
+              raw?.duration_seconds ??
+              (typeof m?.durationSeconds === 'number' ? Math.round(m.durationSeconds) : undefined),
+            transcript: raw?.transcript ?? m?.transcript ?? null,
+            recording_url: raw?.recording_url ?? m?.recordingUrl ?? m?.stereoRecordingUrl ?? null,
+            summary: raw?.summary ?? m?.summary ?? m?.analysis?.summary ?? null,
+            started_at: raw?.started_at ?? m?.startedAt ?? call?.startedAt,
+            ended_at: raw?.ended_at ?? m?.endedAt ?? call?.endedAt,
+            booking: raw?.booking ?? m?.analysis?.structuredData?.booking,
+            order: raw?.order ?? m?.analysis?.structuredData?.order,
+          };
+
+          if (!payload.phone) {
+            console.warn('[vapi-webhook] missing phone in payload');
+            return json({ error: 'phone is required (checked root, message.customer.number, message.phoneNumber.number)' }, 400);
           }
 
           // Resolve restaurant_id from payload, header, or fall back to the
