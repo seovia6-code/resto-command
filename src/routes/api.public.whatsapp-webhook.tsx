@@ -3,10 +3,78 @@ import { supabaseAdmin } from '@/integrations/supabase/client.server';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers':
     'Content-Type, Authorization, X-Whatsapp-Secret, X-Restaurant-Id',
 } as const;
+
+// --- Meta WhatsApp Cloud API payload types ---
+interface MetaWaMessage {
+  from?: string;
+  id?: string;
+  timestamp?: string;
+  type?: string;
+  text?: { body?: string };
+  button?: { text?: string };
+  interactive?: {
+    button_reply?: { title?: string };
+    list_reply?: { title?: string };
+  };
+  image?: { caption?: string };
+  video?: { caption?: string };
+  document?: { caption?: string; filename?: string };
+}
+interface MetaWaContact {
+  wa_id?: string;
+  profile?: { name?: string };
+}
+interface MetaWaValue {
+  messaging_product?: string;
+  metadata?: { display_phone_number?: string; phone_number_id?: string };
+  contacts?: MetaWaContact[];
+  messages?: MetaWaMessage[];
+}
+interface MetaWaPayload {
+  object?: string;
+  entry?: Array<{ id?: string; changes?: Array<{ value?: MetaWaValue; field?: string }> }>;
+}
+
+function extractMetaMessage(body: unknown): {
+  isMeta: boolean;
+  messageId?: string;
+  from?: string;
+  contactName?: string;
+  text?: string;
+  timestamp?: string;
+  type?: string;
+} {
+  const b = body as MetaWaPayload;
+  if (!b || b.object !== 'whatsapp_business_account') return { isMeta: false };
+  const value = b.entry?.[0]?.changes?.[0]?.value;
+  const msg = value?.messages?.[0];
+  if (!msg) return { isMeta: true };
+  const contact = value?.contacts?.[0];
+  const text =
+    msg.text?.body ??
+    msg.button?.text ??
+    msg.interactive?.button_reply?.title ??
+    msg.interactive?.list_reply?.title ??
+    msg.image?.caption ??
+    msg.video?.caption ??
+    msg.document?.caption ??
+    msg.document?.filename ??
+    `[${msg.type ?? 'message'}]`;
+  return {
+    isMeta: true,
+    messageId: msg.id,
+    from: msg.from ?? contact?.wa_id,
+    contactName: contact?.profile?.name,
+    text,
+    timestamp: msg.timestamp,
+    type: msg.type,
+  };
+}
+
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
