@@ -193,6 +193,10 @@ export const Route = createFileRoute('/api/public/whatsapp-webhook')({
             return json({ error: 'Invalid JSON' }, 400);
           }
 
+          // Extract Meta WhatsApp message id (wamid) — useful for Vapi/debug
+          const waMessageId = (parsed as MetaWaPayload)?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.id;
+          console.log('waMessageId:', waMessageId);
+
           const meta = extractMetaMessage(parsed);
 
           // --- Auth ---
