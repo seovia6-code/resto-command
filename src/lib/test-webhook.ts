@@ -78,10 +78,11 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
     };
 
     try {
-      // Resolve most recent restaurant
+      // Resolve restaurant owned by the current user
       const { data: r, error: rErr } = await supabaseAdmin
         .from("restaurants")
         .select("id")
+        .eq("owner_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -91,7 +92,7 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
           ok: false,
           status: 400,
           statusText: "No restaurant",
-          body: "No restaurant found to attach the test message to.",
+          body: "No restaurant found for the current user. Create a restaurant first.",
           url,
           durationMs: Date.now() - startedAt,
           secretConfigured,
