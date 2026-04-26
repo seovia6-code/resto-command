@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WebhooksRouteImport } from './routes/webhooks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as OrdersRouteImport } from './routes/orders'
@@ -20,6 +21,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api.public.whatsapp-webhook'
 import { Route as ApiPublicVapiWebhookRouteImport } from './routes/api.public.vapi-webhook'
 
+const WebhooksRoute = WebhooksRouteImport.update({
+  id: '/webhooks',
+  path: '/webhooks',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/orders': typeof OrdersRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/webhooks': typeof WebhooksRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
 }
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/webhooks': typeof WebhooksRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
 }
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/orders': typeof OrdersRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
+  '/webhooks': typeof WebhooksRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
 }
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/reports'
     | '/settings'
+    | '/webhooks'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/reports'
     | '/settings'
+    | '/webhooks'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
   id:
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/reports'
     | '/settings'
+    | '/webhooks'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
   fileRoutesById: FileRoutesById
@@ -157,12 +169,20 @@ export interface RootRouteChildren {
   OrdersRoute: typeof OrdersRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
+  WebhooksRoute: typeof WebhooksRoute
   ApiPublicVapiWebhookRoute: typeof ApiPublicVapiWebhookRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/webhooks': {
+      id: '/webhooks'
+      path: '/webhooks'
+      fullPath: '/webhooks'
+      preLoaderRoute: typeof WebhooksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrdersRoute: OrdersRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
+  WebhooksRoute: WebhooksRoute,
   ApiPublicVapiWebhookRoute: ApiPublicVapiWebhookRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }

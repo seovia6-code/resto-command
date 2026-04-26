@@ -8,6 +8,7 @@ import {
   BarChart3,
   Settings,
   ChefHat,
+  Webhook,
 } from "lucide-react";
 import {
   Sidebar,
@@ -29,6 +30,7 @@ const items = [
   { title: "Call Logs", url: "/calls", icon: PhoneCall },
   { title: "WhatsApp Chats", url: "/chats", icon: MessageCircle },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Webhooks", url: "/webhooks", icon: Webhook },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
