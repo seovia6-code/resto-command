@@ -40,18 +40,16 @@ export const sendTestVapiWebhook = createServerFn({ method: "POST" }).handler(
  * when viewing the data; this server fn uses the admin client to write).
  */
 export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
-  .inputValidator((data: { restaurantId: string }) => {
-    if (!data?.restaurantId || typeof data.restaurantId !== "string") {
-      throw new Error("restaurantId is required");
-    }
-    return data;
-  })
-  .handler(async ({ data }) => {
+  .inputValidator((data: { restaurantId?: string }) => data ?? {})
+  .handler(async () => {
     const startedAt = Date.now();
     const url =
       "https://resto-command.lovable.app/api/public/whatsapp-webhook";
     const secret = process.env.WHATSAPP_WEBHOOK_SECRET ?? "";
+    const verifyToken =
+      process.env.WHATSAPP_VERIFY_TOKEN ?? secret;
     const secretConfigured = secret.length > 0;
+    const verifyConfigured = verifyToken.length > 0;
 
     if (!secretConfigured) {
       return {
@@ -65,125 +63,16 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
       };
     }
 
-    const { supabaseAdmin } = await import(
-      "@/integrations/supabase/client.server"
-    );
-
-    const restaurantId = data.restaurantId;
-    const samplePayload = {
-      phone: "+447000000001",
-      contact_name: "Test Contact",
-      message: "Hi, this is a test WhatsApp message from the dashboard.",
-      intent: "enquiry" as const,
-      status: "active" as const,
-      summary: "Dashboard test message",
-      received_at: new Date().toISOString(),
+    return {
+      ok: true,
+      status: 200,
+      statusText: "Ready",
+      body:
+        "Webhook URL and secret are configured. No dummy data was written. " +
+        "Real WhatsApp messages from Meta Cloud API will populate logs with the actual sender name and message." +
+        (verifyConfigured ? "" : "\n\nNote: WHATSAPP_VERIFY_TOKEN is not set; using WHATSAPP_WEBHOOK_SECRET as the verify token."),
+      url,
+      durationMs: Date.now() - startedAt,
+      secretConfigured,
     };
-
-    try {
-      // Verify restaurant exists
-      const { data: r, error: rErr } = await supabaseAdmin
-        .from("restaurants")
-        .select("id")
-        .eq("id", restaurantId)
-        .maybeSingle();
-      if (rErr) throw rErr;
-      if (!r?.id) {
-        return {
-          ok: false,
-          status: 400,
-          statusText: "No restaurant",
-          body: "Restaurant not found.",
-          url,
-          durationMs: Date.now() - startedAt,
-          secretConfigured,
-        };
-      }
-
-      // Find or create customer
-      const { data: existingCust } = await supabaseAdmin
-        .from("customers")
-        .select("id")
-        .eq("restaurant_id", restaurantId)
-        .eq("phone", samplePayload.phone)
-        .maybeSingle();
-
-      let customerId: string;
-      if (existingCust) {
-        customerId = existingCust.id;
-        await supabaseAdmin
-          .from("customers")
-          .update({ last_contact_at: samplePayload.received_at })
-          .eq("id", customerId);
-      } else {
-        const { data: created, error: cErr } = await supabaseAdmin
-          .from("customers")
-          .insert({
-            restaurant_id: restaurantId,
-            phone: samplePayload.phone,
-            name: samplePayload.contact_name,
-            last_contact_at: samplePayload.received_at,
-          })
-          .select("id")
-          .single();
-        if (cErr) throw cErr;
-        customerId = created.id;
-      }
-
-      const { data: convo, error: convoErr } = await supabaseAdmin
-        .from("conversations")
-        .insert({
-          restaurant_id: restaurantId,
-          customer_id: customerId,
-          channel: "whatsapp",
-          intent: samplePayload.intent,
-          status: "open",
-          summary: samplePayload.summary,
-          started_at: samplePayload.received_at,
-        })
-        .select("id")
-        .single();
-      if (convoErr) throw convoErr;
-
-      const { error: logErr } = await supabaseAdmin
-        .from("whatsapp_logs")
-        .insert({
-          restaurant_id: restaurantId,
-          customer_id: customerId,
-          conversation_id: convo.id,
-          contact_name: samplePayload.contact_name,
-          phone: samplePayload.phone,
-          last_message: samplePayload.message,
-          last_message_at: samplePayload.received_at,
-          intent: samplePayload.intent,
-          status: samplePayload.status,
-          message_count: 1,
-        });
-      if (logErr) throw logErr;
-
-      return {
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        body: JSON.stringify(
-          { ok: true, conversation_id: convo.id, customer_id: customerId },
-          null,
-          2,
-        ),
-        url,
-        durationMs: Date.now() - startedAt,
-        secretConfigured,
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return {
-        ok: false,
-        status: 500,
-        statusText: "Error",
-        body: message,
-        url,
-        durationMs: Date.now() - startedAt,
-        secretConfigured,
-      };
-    }
   });
