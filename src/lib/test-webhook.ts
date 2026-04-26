@@ -39,9 +39,11 @@ export const sendTestVapiWebhook = createServerFn({ method: "POST" }).handler(
  * using the configured shared secret. Useful for verifying the endpoint
  * end-to-end (auth + insert flow) from the Webhooks page.
  */
-export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" }).handler(
-  async () => {
+export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
     const startedAt = Date.now();
+    const userId = context.userId;
     const url =
       "https://resto-command.lovable.app/api/public/whatsapp-webhook";
     const secret = process.env.WHATSAPP_WEBHOOK_SECRET ?? "";
