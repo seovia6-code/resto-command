@@ -155,7 +155,7 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           }
 
           // Resolve restaurant_id from payload, header, or fall back to the
-          // first restaurant in the project (single-tenant friendly default).
+          // latest restaurant in the project (matches the active dashboard owner).
           let restaurantId =
             payload.restaurant_id ||
             request.headers.get('x-restaurant-id') ||
@@ -165,7 +165,7 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
             const { data: r } = await supabaseAdmin
               .from('restaurants')
               .select('id')
-              .order('created_at', { ascending: true })
+              .order('created_at', { ascending: false })
               .limit(1)
               .maybeSingle();
             restaurantId = r?.id;
