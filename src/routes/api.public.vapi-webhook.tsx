@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { supabaseAdmin } from '@/integrations/supabase/client.server';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Vapi-Secret',
+  'Access-Control-Allow-Headers':
+    'Content-Type, Authorization, X-Vapi-Secret, X-Vapi-Signature, X-Restaurant-Id',
 } as const;
 
 function json(body: unknown, status = 200) {
@@ -16,6 +18,19 @@ function json(body: unknown, status = 200) {
 
 type CallIntent = 'booking' | 'order' | 'enquiry' | 'complaint' | 'other';
 type CallOutcome = 'resolved' | 'booked' | 'missed' | 'failed' | 'transferred';
+
+function isValidVapiSignature(rawBody: string, signature: string | null, secret: string) {
+  if (!signature) return false;
+  const received = signature.replace(/^sha256=/i, '').trim();
+  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+  const receivedBuffer = Buffer.from(received, 'hex');
+  const expectedBuffer = Buffer.from(expected, 'hex');
+
+  return (
+    receivedBuffer.length === expectedBuffer.length &&
+    timingSafeEqual(receivedBuffer, expectedBuffer)
+  );
+}
 
 interface VapiPayload {
   restaurant_id?: string;
@@ -100,12 +115,16 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           if (!expected) {
             return json({ error: 'Webhook secret not configured' }, 500);
           }
+          const rawBody = await request.text();
           const headerSecret = request.headers.get('x-vapi-secret');
+          const signature = request.headers.get('x-vapi-signature');
           const authHeader = request.headers.get('authorization');
           const bearer = authHeader?.replace(/^Bearer\s+/i, '');
           const provided = headerSecret || bearer;
+          const validSharedSecret = provided === expected;
+          const validSignature = isValidVapiSignature(rawBody, signature, expected);
 
-          if (provided !== expected) {
+          if (!validSharedSecret && !validSignature) {
             // Verbose diagnostics so we can see WHY VAPI requests are rejected.
             const allHeaders: Record<string, string> = {};
             request.headers.forEach((v, k) => {
@@ -119,6 +138,8 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
             console.warn('[vapi-webhook] AUTH FAILED', {
               has_x_vapi_secret: !!headerSecret,
               x_vapi_secret_len: headerSecret?.length ?? 0,
+              has_x_vapi_signature: !!signature,
+              x_vapi_signature_len: signature?.length ?? 0,
               has_authorization: !!authHeader,
               bearer_len: bearer?.length ?? 0,
               expected_len: expected.length,
@@ -128,7 +149,7 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
             return json(
               {
                 error: 'Unauthorized',
-                hint: 'Webhook received but the x-vapi-secret header did not match VAPI_WEBHOOK_SECRET. Check server logs for header diagnostics.',
+                hint: 'Webhook received, but neither x-vapi-secret nor x-vapi-signature matched the configured VAPI_WEBHOOK_SECRET.',
                 received_header_names: Array.from(request.headers.keys()),
               },
               401,
@@ -136,7 +157,7 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           }
 
           // --- Parse body ---
-          const raw = (await request.json()) as any;
+          const raw = JSON.parse(rawBody || '{}') as any;
           console.log('[vapi-webhook] received payload keys:', Object.keys(raw ?? {}));
 
           // Normalize: VAPI native end-of-call-report wraps everything in `message`.
