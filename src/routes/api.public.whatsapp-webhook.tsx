@@ -3,10 +3,78 @@ import { supabaseAdmin } from '@/integrations/supabase/client.server';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers':
     'Content-Type, Authorization, X-Whatsapp-Secret, X-Restaurant-Id',
 } as const;
+
+// --- Meta WhatsApp Cloud API payload types ---
+interface MetaWaMessage {
+  from?: string;
+  id?: string;
+  timestamp?: string;
+  type?: string;
+  text?: { body?: string };
+  button?: { text?: string };
+  interactive?: {
+    button_reply?: { title?: string };
+    list_reply?: { title?: string };
+  };
+  image?: { caption?: string };
+  video?: { caption?: string };
+  document?: { caption?: string; filename?: string };
+}
+interface MetaWaContact {
+  wa_id?: string;
+  profile?: { name?: string };
+}
+interface MetaWaValue {
+  messaging_product?: string;
+  metadata?: { display_phone_number?: string; phone_number_id?: string };
+  contacts?: MetaWaContact[];
+  messages?: MetaWaMessage[];
+}
+interface MetaWaPayload {
+  object?: string;
+  entry?: Array<{ id?: string; changes?: Array<{ value?: MetaWaValue; field?: string }> }>;
+}
+
+function extractMetaMessage(body: unknown): {
+  isMeta: boolean;
+  messageId?: string;
+  from?: string;
+  contactName?: string;
+  text?: string;
+  timestamp?: string;
+  type?: string;
+} {
+  const b = body as MetaWaPayload;
+  if (!b || b.object !== 'whatsapp_business_account') return { isMeta: false };
+  const value = b.entry?.[0]?.changes?.[0]?.value;
+  const msg = value?.messages?.[0];
+  if (!msg) return { isMeta: true };
+  const contact = value?.contacts?.[0];
+  const text =
+    msg.text?.body ??
+    msg.button?.text ??
+    msg.interactive?.button_reply?.title ??
+    msg.interactive?.list_reply?.title ??
+    msg.image?.caption ??
+    msg.video?.caption ??
+    msg.document?.caption ??
+    msg.document?.filename ??
+    `[${msg.type ?? 'message'}]`;
+  return {
+    isMeta: true,
+    messageId: msg.id,
+    from: msg.from ?? contact?.wa_id,
+    contactName: contact?.profile?.name,
+    text,
+    timestamp: msg.timestamp,
+    type: msg.type,
+  };
+}
+
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -90,23 +158,99 @@ export const Route = createFileRoute('/api/public/whatsapp-webhook')({
       OPTIONS: async () =>
         new Response(null, { status: 204, headers: CORS_HEADERS }),
 
+      // Meta WhatsApp Cloud API verification handshake
+      // https://developers.facebook.com/docs/graph-api/webhooks/getting-started
+      GET: async ({ request }) => {
+        const url = new URL(request.url);
+        const mode = url.searchParams.get('hub.mode');
+        const token = url.searchParams.get('hub.verify_token');
+        const challenge = url.searchParams.get('hub.challenge');
+        const verifyToken =
+          process.env.WHATSAPP_VERIFY_TOKEN ||
+          process.env.WHATSAPP_WEBHOOK_SECRET;
+        if (mode === 'subscribe' && token && token === verifyToken && challenge) {
+          return new Response(challenge, {
+            status: 200,
+            headers: { 'Content-Type': 'text/plain', ...CORS_HEADERS },
+          });
+        }
+        return new Response('Forbidden', { status: 403, headers: CORS_HEADERS });
+      },
+
       POST: async ({ request }) => {
         try {
-          // --- Auth: shared secret ---
           const expected = process.env.WHATSAPP_WEBHOOK_SECRET;
           if (!expected) {
             return json({ error: 'Webhook secret not configured' }, 500);
           }
-          const provided =
-            request.headers.get('x-whatsapp-secret') ||
-            request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
-          if (provided !== expected) {
-            return json({ error: 'Unauthorized' }, 401);
+
+          // Read raw body so we can verify Meta's HMAC signature if present
+          const rawBody = await request.text();
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(rawBody);
+          } catch {
+            return json({ error: 'Invalid JSON' }, 400);
           }
 
-          const payload = (await request.json()) as WhatsAppPayload;
-          if (!payload?.phone || !payload?.message) {
-            return json({ error: 'phone and message are required' }, 400);
+          const meta = extractMetaMessage(parsed);
+
+          // --- Auth ---
+          if (meta.isMeta) {
+            // Meta Cloud API: verify x-hub-signature-256 = HMAC_SHA256(appSecret, rawBody)
+            const sig = request.headers.get('x-hub-signature-256') ?? '';
+            const appSecret =
+              process.env.WHATSAPP_APP_SECRET ||
+              process.env.WHATSAPP_WEBHOOK_SECRET;
+            if (appSecret && sig.startsWith('sha256=')) {
+              const { createHmac, timingSafeEqual } = await import('node:crypto');
+              const expectedSig =
+                'sha256=' +
+                createHmac('sha256', appSecret).update(rawBody).digest('hex');
+              const a = Buffer.from(sig);
+              const b = Buffer.from(expectedSig);
+              if (a.length !== b.length || !timingSafeEqual(a, b)) {
+                console.warn('[whatsapp-webhook] Meta signature mismatch');
+                return json({ error: 'Invalid signature' }, 401);
+              }
+            } else {
+              console.warn(
+                '[whatsapp-webhook] Meta payload received without verifiable signature; accepting in dev mode',
+              );
+            }
+          } else {
+            // Legacy / dashboard test: simple shared-secret header
+            const provided =
+              request.headers.get('x-whatsapp-secret') ||
+              request.headers
+                .get('authorization')
+                ?.replace(/^Bearer\s+/i, '');
+            if (provided !== expected) {
+              return json({ error: 'Unauthorized' }, 401);
+            }
+          }
+
+          // --- Build a normalized WhatsAppPayload ---
+          let payload: WhatsAppPayload;
+          if (meta.isMeta) {
+            if (!meta.messageId || !meta.from || !meta.text) {
+              // Status updates and other non-message events — ack and skip
+              return json({ ok: true, ignored: true, reason: 'no message' });
+            }
+            payload = {
+              phone: meta.from.startsWith('+') ? meta.from : `+${meta.from}`,
+              contact_name: meta.contactName ?? null,
+              message: meta.text,
+              received_at: meta.timestamp
+                ? new Date(Number(meta.timestamp) * 1000).toISOString()
+                : new Date().toISOString(),
+              summary: `wamid:${meta.messageId}`,
+            };
+          } else {
+            payload = parsed as WhatsAppPayload;
+            if (!payload?.phone || !payload?.message) {
+              return json({ error: 'phone and message are required' }, 400);
+            }
           }
 
           // Resolve restaurant_id
@@ -284,6 +428,7 @@ export const Route = createFileRoute('/api/public/whatsapp-webhook')({
             customer_id: customerId,
             conversation_id: conversationId,
             whatsapp_log_id: chatLogId,
+            wamid: meta.isMeta ? meta.messageId : undefined,
             booking_id: bookingId,
             order_id: orderId,
           });
