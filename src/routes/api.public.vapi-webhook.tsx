@@ -110,53 +110,20 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
 
       POST: async ({ request }) => {
         try {
-          // --- Auth: shared secret ---
-          const expected = process.env.VAPI_WEBHOOK_SECRET;
-          if (!expected) {
-            return json({ error: 'Webhook secret not configured' }, 500);
-          }
-          const rawBody = await request.text();
-          const headerSecret = request.headers.get('x-vapi-secret');
-          const signature = request.headers.get('x-vapi-signature');
-          const authHeader = request.headers.get('authorization');
-          const bearer = authHeader?.replace(/^Bearer\s+/i, '');
-          const provided = headerSecret || bearer;
-          const validSharedSecret = provided === expected;
-          const validSignature = isValidVapiSignature(rawBody, signature, expected);
-
-          if (!validSharedSecret && !validSignature) {
-            // Verbose diagnostics so we can see WHY VAPI requests are rejected.
-            const allHeaders: Record<string, string> = {};
-            request.headers.forEach((v, k) => {
-              // Redact obvious secret-bearing headers but keep their length.
-              const lower = k.toLowerCase();
-              allHeaders[k] =
-                lower.includes('secret') || lower.includes('auth') || lower.includes('signature')
-                  ? `<${v.length} chars>`
-                  : v;
-            });
-            console.warn('[vapi-webhook] AUTH FAILED', {
-              has_x_vapi_secret: !!headerSecret,
-              x_vapi_secret_len: headerSecret?.length ?? 0,
-              has_x_vapi_signature: !!signature,
-              x_vapi_signature_len: signature?.length ?? 0,
-              has_authorization: !!authHeader,
-              bearer_len: bearer?.length ?? 0,
-              expected_len: expected.length,
+          // --- Auth: shared secret (VAPI pattern) ---
+          const secret = request.headers.get('x-vapi-secret') || '';
+          if (secret !== process.env.VAPI_WEBHOOK_SECRET) {
+            console.warn('[vapi-webhook] Unauthorized', {
+              has_x_vapi_secret: !!secret,
+              x_vapi_secret_len: secret.length,
+              expected_len: (process.env.VAPI_WEBHOOK_SECRET || '').length,
               header_names: Array.from(request.headers.keys()),
-              headers: allHeaders,
             });
-            return json(
-              {
-                error: 'Unauthorized',
-                hint: 'Webhook received, but neither x-vapi-secret nor x-vapi-signature matched the configured VAPI_WEBHOOK_SECRET.',
-                received_header_names: Array.from(request.headers.keys()),
-              },
-              401,
-            );
+            return new Response('Unauthorized', { status: 401 });
           }
 
           // --- Parse body ---
+          const rawBody = await request.text();
           const raw = JSON.parse(rawBody || '{}') as any;
           console.log('[vapi-webhook] received payload keys:', Object.keys(raw ?? {}));
 
