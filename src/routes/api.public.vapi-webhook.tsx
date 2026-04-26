@@ -114,12 +114,12 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           // Normalize: VAPI native end-of-call-report wraps everything in `message`.
           // Accept either our flat shape OR VAPI's native shape.
           const m = raw?.message ?? raw;
-          const call = m?.call ?? raw?.call ?? {};
-          const customer = m?.customer ?? call?.customer ?? {};
+          const vCall = m?.call ?? raw?.call ?? {};
+          const vCustomer = m?.customer ?? vCall?.customer ?? {};
 
           const intentRaw = (m?.analysis?.structuredData?.intent ?? m?.intent ?? raw?.intent ?? 'other') as string;
           const allowedIntents = ['booking', 'order', 'enquiry', 'complaint', 'other'];
-          const intent = (allowedIntents.includes(intentRaw) ? intentRaw : 'other') as CallIntent;
+          const normalizedIntent = (allowedIntents.includes(intentRaw) ? intentRaw : 'other') as CallIntent;
 
           const payload: VapiPayload = {
             restaurant_id: raw?.restaurant_id,
