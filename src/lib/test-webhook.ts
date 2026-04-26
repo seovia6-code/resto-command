@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 /**
  * Verifies the webhook endpoint configuration without writing sample records.
  * Real VAPI calls are the only source that should create call data.
