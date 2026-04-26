@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
 /**
  * Verifies the webhook endpoint configuration without writing sample records.
- * Real VAPI calls are the only source that should create call data.
  */
 export const sendTestVapiWebhook = createServerFn({ method: "POST" }).handler(
   async () => {
@@ -36,15 +35,19 @@ export const sendTestVapiWebhook = createServerFn({ method: "POST" }).handler(
 );
 
 /**
- * Sends a sample WhatsApp message payload to the public WhatsApp webhook
- * using the configured shared secret. Useful for verifying the endpoint
- * end-to-end (auth + insert flow) from the Webhooks page.
+ * Inserts a sample WhatsApp conversation/log into the provided restaurant.
+ * The client must pass a restaurantId it owns (RLS will reject otherwise
+ * when viewing the data; this server fn uses the admin client to write).
  */
 export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data: { restaurantId: string }) => {
+    if (!data?.restaurantId || typeof data.restaurantId !== "string") {
+      throw new Error("restaurantId is required");
+    }
+    return data;
+  })
+  .handler(async ({ data }) => {
     const startedAt = Date.now();
-    const userId = context.userId;
     const url =
       "https://resto-command.lovable.app/api/public/whatsapp-webhook";
     const secret = process.env.WHATSAPP_WEBHOOK_SECRET ?? "";
@@ -62,11 +65,11 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
       };
     }
 
-    // Import dynamically to keep the server-only client out of any client bundle.
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
 
+    const restaurantId = data.restaurantId;
     const samplePayload = {
       phone: "+447000000001",
       contact_name: "Test Contact",
@@ -78,13 +81,11 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
     };
 
     try {
-      // Resolve restaurant owned by the current user
+      // Verify restaurant exists
       const { data: r, error: rErr } = await supabaseAdmin
         .from("restaurants")
         .select("id")
-        .eq("owner_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1)
+        .eq("id", restaurantId)
         .maybeSingle();
       if (rErr) throw rErr;
       if (!r?.id) {
@@ -92,18 +93,17 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
           ok: false,
           status: 400,
           statusText: "No restaurant",
-          body: "No restaurant found for the current user. Create a restaurant first.",
+          body: "Restaurant not found.",
           url,
           durationMs: Date.now() - startedAt,
           secretConfigured,
         };
       }
-      const restaurantId = r.id;
 
       // Find or create customer
       const { data: existingCust } = await supabaseAdmin
         .from("customers")
-        .select("id, name")
+        .select("id")
         .eq("restaurant_id", restaurantId)
         .eq("phone", samplePayload.phone)
         .maybeSingle();
@@ -130,7 +130,6 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
         customerId = created.id;
       }
 
-      // Conversation
       const { data: convo, error: convoErr } = await supabaseAdmin
         .from("conversations")
         .insert({
@@ -146,7 +145,6 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
         .single();
       if (convoErr) throw convoErr;
 
-      // WhatsApp log
       const { error: logErr } = await supabaseAdmin
         .from("whatsapp_logs")
         .insert({
@@ -188,6 +186,4 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
         secretConfigured,
       };
     }
-  },
-);
-
+  });
