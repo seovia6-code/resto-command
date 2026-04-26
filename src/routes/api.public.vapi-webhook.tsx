@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { createHmac, timingSafeEqual } from 'crypto';
 import { supabaseAdmin } from '@/integrations/supabase/client.server';
 
 const CORS_HEADERS = {
@@ -18,19 +17,6 @@ function json(body: unknown, status = 200) {
 
 type CallIntent = 'booking' | 'order' | 'enquiry' | 'complaint' | 'other';
 type CallOutcome = 'resolved' | 'booked' | 'missed' | 'failed' | 'transferred';
-
-function isValidVapiSignature(rawBody: string, signature: string | null, secret: string) {
-  if (!signature) return false;
-  const received = signature.replace(/^sha256=/i, '').trim();
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-  const receivedBuffer = Buffer.from(received, 'hex');
-  const expectedBuffer = Buffer.from(expected, 'hex');
-
-  return (
-    receivedBuffer.length === expectedBuffer.length &&
-    timingSafeEqual(receivedBuffer, expectedBuffer)
-  );
-}
 
 interface VapiPayload {
   restaurant_id?: string;
@@ -111,12 +97,13 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
       POST: async ({ request }) => {
         try {
           // --- Auth: shared secret (VAPI pattern) ---
-          const secret = request.headers.get('x-vapi-secret') || '';
-          if (secret !== process.env.VAPI_WEBHOOK_SECRET) {
+          const secret = (request.headers.get('x-vapi-secret') || '').trim();
+          const expectedSecret = (process.env.VAPI_WEBHOOK_SECRET || '').trim();
+          if (!expectedSecret || secret !== expectedSecret) {
             console.warn('[vapi-webhook] Unauthorized', {
               has_x_vapi_secret: !!secret,
               x_vapi_secret_len: secret.length,
-              expected_len: (process.env.VAPI_WEBHOOK_SECRET || '').length,
+              expected_len: expectedSecret.length,
               header_names: Array.from(request.headers.keys()),
             });
             return new Response('Unauthorized', { status: 401 });
