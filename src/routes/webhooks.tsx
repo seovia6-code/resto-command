@@ -167,7 +167,7 @@ function TestWebhookPanel({
   title: string;
   description: string;
   missingSecretLabel: string;
-  runTest: typeof sendTestVapiWebhook | typeof sendTestWhatsAppWebhook;
+  runTest: typeof sendTestVapiWebhook;
 }) {
   const sendTest = useServerFn(runTest);
   const [loading, setLoading] = useState(false);
