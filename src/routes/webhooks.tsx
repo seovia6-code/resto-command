@@ -92,6 +92,8 @@ function WebhooksPage() {
               <li>Add a custom header: name <code className="px-1 rounded bg-muted text-xs">x-vapi-secret</code>, value = your <code className="px-1 rounded bg-muted text-xs">VAPI_WEBHOOK_SECRET</code>.</li>
               <li>Save, then trigger a test call. New entries will appear in <strong>Call Logs</strong>.</li>
             </ol>
+
+            <TestWebhookPanel />
           </CardContent>
         </Card>
 
@@ -107,5 +109,89 @@ function WebhooksPage() {
         </Card>
       </div>
     </AppLayout>
+  );
+}
+
+function statusTone(status: number) {
+  if (status === 0) return "bg-muted text-foreground border";
+  if (status >= 200 && status < 300) return "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30";
+  if (status >= 400 && status < 500) return "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
+  return "bg-destructive/15 text-destructive border-destructive/30";
+}
+
+function TestWebhookPanel() {
+  const sendTest = useServerFn(sendTestVapiWebhook);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<TestResult | null>(null);
+
+  const onClick = async () => {
+    setLoading(true);
+    try {
+      const res = await sendTest();
+      setResult(res);
+      if (res.ok) toast.success(`Webhook responded ${res.status}`);
+      else toast.error(`Webhook responded ${res.status || "error"}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Test failed: ${message}`);
+      setResult({
+        ok: false,
+        status: 0,
+        statusText: "Client error",
+        body: message,
+        url: "",
+        durationMs: 0,
+        secretConfigured: false,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium">Send test webhook</p>
+          <p className="text-xs text-muted-foreground">
+            Posts a sample payload to your VAPI endpoint using the configured secret.
+          </p>
+        </div>
+        <Button type="button" onClick={onClick} disabled={loading}>
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending…
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4 mr-2" /> Send test
+            </>
+          )}
+        </Button>
+      </div>
+
+      {result && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded border font-mono ${statusTone(result.status)}`}
+            >
+              {result.status || "ERR"} {result.statusText}
+            </span>
+            <span className="text-muted-foreground">{result.durationMs} ms</span>
+            {!result.secretConfigured && (
+              <span className="text-amber-600 dark:text-amber-400">
+                ⚠ VAPI_WEBHOOK_SECRET not set on server
+              </span>
+            )}
+          </div>
+          {result.body && (
+            <pre className="text-xs bg-background border rounded p-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
+              {result.body}
+            </pre>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
