@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Copy, Check, ExternalLink, KeyRound, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { sendTestVapiWebhook } from "@/lib/test-webhook";
+import { sendTestVapiWebhook, sendTestWhatsAppWebhook } from "@/lib/test-webhook";
 
 type TestResult = {
   ok: boolean;
@@ -101,7 +101,12 @@ function WebhooksPage() {
               <li>Save, then trigger a test call. New entries will appear in <strong>Call Logs</strong>.</li>
             </ol>
 
-            <TestWebhookPanel />
+            <TestWebhookPanel
+              title="Send test webhook"
+              description="Posts a sample payload to your VAPI endpoint using the configured secret."
+              missingSecretLabel="VAPI_WEBHOOK_SECRET not set on server"
+              runTest={sendTestVapiWebhook}
+            />
           </CardContent>
         </Card>
 
@@ -110,9 +115,40 @@ function WebhooksPage() {
             <CardTitle>WhatsApp Webhook</CardTitle>
             <CardDescription>Endpoint for incoming WhatsApp messages.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Label>Webhook URL (POST)</Label>
-            <CopyField value={WHATSAPP_WEBHOOK_URL} label="WhatsApp URL" />
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label>Webhook URL (POST)</Label>
+              <CopyField value={WHATSAPP_WEBHOOK_URL} label="WhatsApp URL" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Custom header name</Label>
+              <CopyField value="x-whatsapp-secret" label="Header name" />
+            </div>
+
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+              <div className="flex items-start gap-3">
+                <KeyRound className="h-4 w-4 mt-0.5 text-amber-600 shrink-0" />
+                <p className="text-muted-foreground">
+                  Header value: copy your{" "}
+                  <code className="px-1 py-0.5 rounded bg-muted text-xs">
+                    WHATSAPP_WEBHOOK_SECRET
+                  </code>{" "}
+                  from backend secrets and send it as the{" "}
+                  <code className="px-1 py-0.5 rounded bg-muted text-xs">
+                    x-whatsapp-secret
+                  </code>{" "}
+                  header.
+                </p>
+              </div>
+            </div>
+
+            <TestWebhookPanel
+              title="Send test WhatsApp message"
+              description="Posts a sample WhatsApp payload to your endpoint using the configured secret."
+              missingSecretLabel="WHATSAPP_WEBHOOK_SECRET not set on server"
+              runTest={sendTestWhatsAppWebhook}
+            />
           </CardContent>
         </Card>
       </div>
@@ -127,8 +163,18 @@ function statusTone(status: number) {
   return "bg-destructive/15 text-destructive border-destructive/30";
 }
 
-function TestWebhookPanel() {
-  const sendTest = useServerFn(sendTestVapiWebhook);
+function TestWebhookPanel({
+  title,
+  description,
+  missingSecretLabel,
+  runTest,
+}: {
+  title: string;
+  description: string;
+  missingSecretLabel: string;
+  runTest: typeof sendTestVapiWebhook | typeof sendTestWhatsAppWebhook;
+}) {
+  const sendTest = useServerFn(runTest);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
 
@@ -160,10 +206,8 @@ function TestWebhookPanel() {
     <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium">Send test webhook</p>
-          <p className="text-xs text-muted-foreground">
-            Posts a sample payload to your VAPI endpoint using the configured secret.
-          </p>
+          <p className="text-sm font-medium">{title}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </div>
         <Button type="button" onClick={onClick} disabled={loading}>
           {loading ? (
@@ -189,7 +233,7 @@ function TestWebhookPanel() {
             <span className="text-muted-foreground">{result.durationMs} ms</span>
             {!result.secretConfigured && (
               <span className="text-amber-600 dark:text-amber-400">
-                ⚠ VAPI_WEBHOOK_SECRET not set on server
+                ⚠ {missingSecretLabel}
               </span>
             )}
           </div>
