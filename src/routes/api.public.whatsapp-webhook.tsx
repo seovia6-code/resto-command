@@ -158,16 +158,36 @@ export const Route = createFileRoute('/api/public/whatsapp-webhook')({
       OPTIONS: async () =>
         new Response(null, { status: 204, headers: CORS_HEADERS }),
 
+      // Meta WhatsApp Cloud API verification handshake
+      // https://developers.facebook.com/docs/graph-api/webhooks/getting-started
+      GET: async ({ request }) => {
+        const url = new URL(request.url);
+        const mode = url.searchParams.get('hub.mode');
+        const token = url.searchParams.get('hub.verify_token');
+        const challenge = url.searchParams.get('hub.challenge');
+        const verifyToken =
+          process.env.WHATSAPP_VERIFY_TOKEN ||
+          process.env.WHATSAPP_WEBHOOK_SECRET;
+        if (mode === 'subscribe' && token && token === verifyToken && challenge) {
+          return new Response(challenge, {
+            status: 200,
+            headers: { 'Content-Type': 'text/plain', ...CORS_HEADERS },
+          });
+        }
+        return new Response('Forbidden', { status: 403, headers: CORS_HEADERS });
+      },
+
       POST: async ({ request }) => {
         try {
-          // --- Auth: shared secret ---
+          // --- Auth: shared secret (skipped for Meta-signed payloads if header missing) ---
           const expected = process.env.WHATSAPP_WEBHOOK_SECRET;
           if (!expected) {
             return json({ error: 'Webhook secret not configured' }, 500);
           }
           const provided =
             request.headers.get('x-whatsapp-secret') ||
-            request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+            request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
+            request.headers.get('x-hub-signature-256'); // Meta sends this
           if (provided !== expected) {
             return json({ error: 'Unauthorized' }, 401);
           }
