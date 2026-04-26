@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Copy, Check, ExternalLink, KeyRound, Send, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { sendTestVapiWebhook, sendTestWhatsAppWebhook } from "@/lib/test-webhook";
+import { supabase } from "@/integrations/supabase/client";
 
 type TestResult = {
   ok: boolean;
