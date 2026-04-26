@@ -143,12 +143,7 @@ function WebhooksPage() {
               </div>
             </div>
 
-            <TestWebhookPanel
-              title="Send test WhatsApp message"
-              description="Posts a sample WhatsApp payload to your endpoint using the configured secret."
-              missingSecretLabel="WHATSAPP_WEBHOOK_SECRET not set on server"
-              runTest={sendTestWhatsAppWebhook}
-            />
+            <WhatsAppTestPanel />
           </CardContent>
         </Card>
       </div>
