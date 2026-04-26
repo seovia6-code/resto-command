@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 /**
  * Verifies the webhook endpoint configuration without writing sample records.
  * Real VAPI calls are the only source that should create call data.
@@ -39,9 +40,11 @@ export const sendTestVapiWebhook = createServerFn({ method: "POST" }).handler(
  * using the configured shared secret. Useful for verifying the endpoint
  * end-to-end (auth + insert flow) from the Webhooks page.
  */
-export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" }).handler(
-  async () => {
+export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
     const startedAt = Date.now();
+    const userId = context.userId;
     const url =
       "https://resto-command.lovable.app/api/public/whatsapp-webhook";
     const secret = process.env.WHATSAPP_WEBHOOK_SECRET ?? "";
@@ -75,10 +78,11 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" }).handle
     };
 
     try {
-      // Resolve most recent restaurant
+      // Resolve restaurant owned by the current user
       const { data: r, error: rErr } = await supabaseAdmin
         .from("restaurants")
         .select("id")
+        .eq("owner_id", userId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -88,7 +92,7 @@ export const sendTestWhatsAppWebhook = createServerFn({ method: "POST" }).handle
           ok: false,
           status: 400,
           statusText: "No restaurant",
-          body: "No restaurant found to attach the test message to.",
+          body: "No restaurant found for the current user. Create a restaurant first.",
           url,
           durationMs: Date.now() - startedAt,
           secretConfigured,
