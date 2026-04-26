@@ -179,22 +179,78 @@ export const Route = createFileRoute('/api/public/whatsapp-webhook')({
 
       POST: async ({ request }) => {
         try {
-          // --- Auth: shared secret (skipped for Meta-signed payloads if header missing) ---
           const expected = process.env.WHATSAPP_WEBHOOK_SECRET;
           if (!expected) {
             return json({ error: 'Webhook secret not configured' }, 500);
           }
-          const provided =
-            request.headers.get('x-whatsapp-secret') ||
-            request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ||
-            request.headers.get('x-hub-signature-256'); // Meta sends this
-          if (provided !== expected) {
-            return json({ error: 'Unauthorized' }, 401);
+
+          // Read raw body so we can verify Meta's HMAC signature if present
+          const rawBody = await request.text();
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(rawBody);
+          } catch {
+            return json({ error: 'Invalid JSON' }, 400);
           }
 
-          const payload = (await request.json()) as WhatsAppPayload;
-          if (!payload?.phone || !payload?.message) {
-            return json({ error: 'phone and message are required' }, 400);
+          const meta = extractMetaMessage(parsed);
+
+          // --- Auth ---
+          if (meta.isMeta) {
+            // Meta Cloud API: verify x-hub-signature-256 = HMAC_SHA256(appSecret, rawBody)
+            const sig = request.headers.get('x-hub-signature-256') ?? '';
+            const appSecret =
+              process.env.WHATSAPP_APP_SECRET ||
+              process.env.WHATSAPP_WEBHOOK_SECRET;
+            if (appSecret && sig.startsWith('sha256=')) {
+              const { createHmac, timingSafeEqual } = await import('node:crypto');
+              const expectedSig =
+                'sha256=' +
+                createHmac('sha256', appSecret).update(rawBody).digest('hex');
+              const a = Buffer.from(sig);
+              const b = Buffer.from(expectedSig);
+              if (a.length !== b.length || !timingSafeEqual(a, b)) {
+                console.warn('[whatsapp-webhook] Meta signature mismatch');
+                return json({ error: 'Invalid signature' }, 401);
+              }
+            } else {
+              console.warn(
+                '[whatsapp-webhook] Meta payload received without verifiable signature; accepting in dev mode',
+              );
+            }
+          } else {
+            // Legacy / dashboard test: simple shared-secret header
+            const provided =
+              request.headers.get('x-whatsapp-secret') ||
+              request.headers
+                .get('authorization')
+                ?.replace(/^Bearer\s+/i, '');
+            if (provided !== expected) {
+              return json({ error: 'Unauthorized' }, 401);
+            }
+          }
+
+          // --- Build a normalized WhatsAppPayload ---
+          let payload: WhatsAppPayload;
+          if (meta.isMeta) {
+            if (!meta.messageId || !meta.from || !meta.text) {
+              // Status updates and other non-message events — ack and skip
+              return json({ ok: true, ignored: true, reason: 'no message' });
+            }
+            payload = {
+              phone: meta.from.startsWith('+') ? meta.from : `+${meta.from}`,
+              contact_name: meta.contactName ?? null,
+              message: meta.text,
+              received_at: meta.timestamp
+                ? new Date(Number(meta.timestamp) * 1000).toISOString()
+                : new Date().toISOString(),
+              summary: `wamid:${meta.messageId}`,
+            };
+          } else {
+            payload = parsed as WhatsAppPayload;
+            if (!payload?.phone || !payload?.message) {
+              return json({ error: 'phone and message are required' }, 400);
+            }
           }
 
           // Resolve restaurant_id
