@@ -20,6 +20,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api.public.whatsapp-webhook'
 import { Route as ApiPublicVapiWebhookRouteImport } from './routes/api.public.vapi-webhook'
+import { Route as ApiPublicPingWorkerRouteImport } from './routes/api.public.ping-worker'
 
 const WebhooksRoute = WebhooksRouteImport.update({
   id: '/webhooks',
@@ -77,6 +78,11 @@ const ApiPublicVapiWebhookRoute = ApiPublicVapiWebhookRouteImport.update({
   path: '/api/public/vapi-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPingWorkerRoute = ApiPublicPingWorkerRouteImport.update({
+  id: '/api/public/ping-worker',
+  path: '/api/public/ping-worker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -88,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/webhooks': typeof WebhooksRoute
+  '/api/public/ping-worker': typeof ApiPublicPingWorkerRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
 }
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/webhooks': typeof WebhooksRoute
+  '/api/public/ping-worker': typeof ApiPublicPingWorkerRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
 }
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/webhooks': typeof WebhooksRoute
+  '/api/public/ping-worker': typeof ApiPublicPingWorkerRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
 }
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/webhooks'
+    | '/api/public/ping-worker'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/webhooks'
+    | '/api/public/ping-worker'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
   id:
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/webhooks'
+    | '/api/public/ping-worker'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
   fileRoutesById: FileRoutesById
@@ -170,6 +182,7 @@ export interface RootRouteChildren {
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
   WebhooksRoute: typeof WebhooksRoute
+  ApiPublicPingWorkerRoute: typeof ApiPublicPingWorkerRoute
   ApiPublicVapiWebhookRoute: typeof ApiPublicVapiWebhookRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
 }
@@ -253,6 +266,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicVapiWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ping-worker': {
+      id: '/api/public/ping-worker'
+      path: '/api/public/ping-worker'
+      fullPath: '/api/public/ping-worker'
+      preLoaderRoute: typeof ApiPublicPingWorkerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -266,6 +286,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
   WebhooksRoute: WebhooksRoute,
+  ApiPublicPingWorkerRoute: ApiPublicPingWorkerRoute,
   ApiPublicVapiWebhookRoute: ApiPublicVapiWebhookRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
 }
