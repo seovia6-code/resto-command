@@ -10,7 +10,15 @@ import { Copy, Check, ExternalLink, KeyRound, Send, Loader2 } from "lucide-react
 import { toast } from "sonner";
 import { sendTestVapiWebhook } from "@/lib/test-webhook";
 
-type TestResult = Awaited<ReturnType<typeof sendTestVapiWebhook>>;
+type TestResult = {
+  ok: boolean;
+  status: number;
+  statusText: string;
+  body: string;
+  url: string;
+  durationMs: number;
+  secretConfigured: boolean;
+};
 
 export const Route = createFileRoute("/webhooks")({
   head: () => ({ meta: [{ title: "Webhooks — Command Center" }] }),
