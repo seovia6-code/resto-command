@@ -121,17 +121,18 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
           const allowedIntents = ['booking', 'order', 'enquiry', 'complaint', 'other'];
           const normalizedIntent = (allowedIntents.includes(intentRaw) ? intentRaw : 'other') as CallIntent;
 
+          const vCallAny = vCall as any;
           const payload: VapiPayload = {
             restaurant_id: raw?.restaurant_id,
             phone:
               raw?.phone ??
-              customer?.number ??
+              vCustomer?.number ??
               m?.phoneNumber?.number ??
-              call?.phoneNumber?.number ??
+              vCallAny?.phoneNumber?.number ??
               '',
             caller_name:
-              raw?.caller_name ?? customer?.name ?? m?.customer?.name ?? null,
-            intent,
+              raw?.caller_name ?? vCustomer?.name ?? m?.customer?.name ?? null,
+            intent: normalizedIntent,
             outcome: (raw?.outcome ?? (m?.endedReason === 'customer-ended-call' ? 'resolved' : undefined)) as CallOutcome | undefined,
             duration_seconds:
               raw?.duration_seconds ??
@@ -139,8 +140,8 @@ export const Route = createFileRoute('/api/public/vapi-webhook')({
             transcript: raw?.transcript ?? m?.transcript ?? null,
             recording_url: raw?.recording_url ?? m?.recordingUrl ?? m?.stereoRecordingUrl ?? null,
             summary: raw?.summary ?? m?.summary ?? m?.analysis?.summary ?? null,
-            started_at: raw?.started_at ?? m?.startedAt ?? call?.startedAt,
-            ended_at: raw?.ended_at ?? m?.endedAt ?? call?.endedAt,
+            started_at: raw?.started_at ?? m?.startedAt ?? vCallAny?.startedAt,
+            ended_at: raw?.ended_at ?? m?.endedAt ?? vCallAny?.endedAt,
             booking: raw?.booking ?? m?.analysis?.structuredData?.booking,
             order: raw?.order ?? m?.analysis?.structuredData?.order,
           };
