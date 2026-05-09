@@ -10,6 +10,9 @@ import {
 } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDashboardData, useRestaurantId } from "@/lib/queries";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { fetchSummary, fetchOrders } from "@/api/dashboard";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -54,11 +57,42 @@ function Dashboard() {
   const { data: rid, isLoading: ridLoading } = useRestaurantId();
   const { data, isLoading } = useDashboardData(rid);
 
+  // Live data from the Cloudflare Worker (WhatsApp bridge)
+  const summaryFn = useServerFn(fetchSummary);
+  const ordersFn = useServerFn(fetchOrders);
+  const { data: waSummary } = useQuery<any>({
+    queryKey: ["worker", "summary"],
+    queryFn: () => summaryFn(),
+    refetchInterval: 30_000,
+  });
+  const { data: waOrders } = useQuery<any[]>({
+    queryKey: ["worker", "orders"],
+    queryFn: () => ordersFn() as any,
+    refetchInterval: 30_000,
+  });
+
   if (ridLoading || isLoading || !data) {
     return <AppLayout title="Dashboard"><LoadingState label="Loading your restaurant..." /></AppLayout>;
   }
 
-  const { stats, charts, recentBookings, recentOrders, recentCalls, recentChats } = data;
+  const base = data;
+  const stats = {
+    ...base.stats,
+    totalWhatsApp: waSummary?.totalChats ?? base.stats.totalWhatsApp,
+    totalOrders: Array.isArray(waSummary?.ordersByType)
+      ? waSummary.ordersByType.reduce((n: number, r: any) => n + Number(r.total ?? 0), 0)
+      : base.stats.totalOrders,
+  };
+  const { charts, recentBookings, recentCalls, recentChats } = base;
+  const recentOrders = (waOrders && waOrders.length > 0)
+    ? waOrders.map((o: any) => ({
+        id: o.order_id,
+        customer_name: o.customer_name ?? o.wa_from ?? "Unknown",
+        order_type: o.order_type ?? "—",
+        total: 0,
+        status: "received",
+      }))
+    : base.recentOrders;
 
   return (
     <AppLayout title="Dashboard">
