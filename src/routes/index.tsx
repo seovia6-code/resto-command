@@ -58,7 +58,8 @@ function RecentTable({ title, children }: { title: string; children: React.React
 function Dashboard() {
   const { data: rid, isLoading: ridLoading } = useRestaurantId();
   const { data: isAdmin } = useIsAdmin();
-  const { data, isLoading } = useDashboardData(rid, !!isAdmin);
+  const { data, isLoading, isFetching, refetch } = useDashboardData(rid, !!isAdmin);
+  const qc = useQueryClient();
 
   // Live data from the Cloudflare Worker (WhatsApp bridge)
   const summaryFn = useServerFn(fetchSummary);
