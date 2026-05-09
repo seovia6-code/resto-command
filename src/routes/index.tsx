@@ -55,7 +55,8 @@ function RecentTable({ title, children }: { title: string; children: React.React
 
 function Dashboard() {
   const { data: rid, isLoading: ridLoading } = useRestaurantId();
-  const { data, isLoading } = useDashboardData(rid);
+  const { data: isAdmin } = useIsAdmin();
+  const { data, isLoading } = useDashboardData(rid, !!isAdmin);
 
   // Live data from the Cloudflare Worker (WhatsApp bridge)
   const summaryFn = useServerFn(fetchSummary);
@@ -72,7 +73,7 @@ function Dashboard() {
   });
 
   if (ridLoading || isLoading || !data) {
-    return <AppLayout title="Dashboard"><LoadingState label="Loading your restaurant..." /></AppLayout>;
+    return <AppLayout title="Dashboard"><LoadingState label="Loading dashboard..." /></AppLayout>;
   }
 
   const base = data;
