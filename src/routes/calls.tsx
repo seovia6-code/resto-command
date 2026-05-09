@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useList, useRestaurantId } from "@/lib/queries";
+import { useList, useRestaurantId, useIsAdmin } from "@/lib/queries";
 import { LoadingState, EmptyState } from "@/components/States";
 import { MessageSquareText } from "lucide-react";
 
@@ -36,7 +36,8 @@ function parseTranscript(transcript: string): TranscriptLine[] {
 
 function CallsPage() {
   const { data: rid } = useRestaurantId();
-  const { data: rows, isLoading } = useList<Call>("call_logs", rid, "started_at");
+  const { data: isAdmin } = useIsAdmin();
+  const { data: rows, isLoading } = useList<Call>("call_logs", rid, "started_at", !!isAdmin);
   const [selected, setSelected] = useState<Call | null>(null);
 
   return (

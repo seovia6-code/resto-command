@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useList, useRestaurantId } from "@/lib/queries";
+import { useList, useRestaurantId, useIsAdmin } from "@/lib/queries";
 import { LoadingState, EmptyState } from "@/components/States";
 
 export const Route = createFileRoute("/chats")({
@@ -18,7 +18,8 @@ type Chat = {
 
 function ChatsPage() {
   const { data: rid } = useRestaurantId();
-  const { data: rows, isLoading } = useList<Chat>("whatsapp_logs", rid, "last_message_at");
+  const { data: isAdmin } = useIsAdmin();
+  const { data: rows, isLoading } = useList<Chat>("whatsapp_logs", rid, "last_message_at", !!isAdmin);
 
   return (
     <AppLayout title="WhatsApp Chats">

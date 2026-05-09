@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useList, useRestaurantId } from "@/lib/queries";
+import { useList, useRestaurantId, useIsAdmin } from "@/lib/queries";
 import { LoadingState, EmptyState } from "@/components/States";
 
 export const Route = createFileRoute("/bookings")({
@@ -17,7 +17,8 @@ type Booking = {
 
 function BookingsPage() {
   const { data: rid } = useRestaurantId();
-  const { data: rows, isLoading } = useList<Booking>("bookings", rid, "created_at");
+  const { data: isAdmin } = useIsAdmin();
+  const { data: rows, isLoading } = useList<Booking>("bookings", rid, "created_at", !!isAdmin);
 
   return (
     <AppLayout title="Bookings">
