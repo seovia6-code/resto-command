@@ -45,9 +45,9 @@ export const fetchOrders = createServerFn({ method: "GET" }).handler(
 export const fetchChats = createServerFn({ method: "GET" }).handler(
   async () => {
     const data = (await callWorker("/api/dashboard/chats?limit=100")) as {
-      results?: unknown;
+      results?: any[];
     };
-    return (data.results ?? data ?? []) as unknown[];
+    return (data.results ?? (Array.isArray(data) ? (data as any) : [])) as any[];
   },
 );
 
@@ -55,6 +55,6 @@ export const fetchChatMessages = createServerFn({ method: "GET" })
   .inputValidator((data: { wa_from: string }) => data)
   .handler(async ({ data }) => {
     const path = `/api/dashboard/chats/${encodeURIComponent(data.wa_from)}/messages?limit=200`;
-    const res = (await callWorker(path)) as { results?: unknown };
-    return (res.results ?? res ?? []) as unknown[];
+    const res = (await callWorker(path)) as { results?: any[] };
+    return (res.results ?? (Array.isArray(res) ? (res as any) : [])) as any[];
   });
