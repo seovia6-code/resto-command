@@ -11,8 +11,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDashboardData, useRestaurantId, useIsAdmin } from "@/lib/queries";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchSummary, fetchOrders } from "@/api/dashboard";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
