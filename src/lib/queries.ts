@@ -3,6 +3,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 import { ensureRestaurant } from "./seed";
 
+export function useIsAdmin() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["is-admin", user?.id],
+    enabled: !!user,
+    staleTime: Infinity,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user!.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (error) return false;
+      return !!data;
+    },
+  });
+}
+
 export function useRestaurantId() {
   const { user } = useAuth();
   return useQuery({
