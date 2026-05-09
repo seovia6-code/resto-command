@@ -65,7 +65,7 @@ function ChatsPage() {
         </div>
         <div className="overflow-x-auto">
           {isLoading ? <LoadingState /> :
-           error ? <EmptyState title="Couldn't load chats" description={(error as Error).message} /> :
+           error ? <EmptyState title="Couldn't load chats" hint={(error as Error).message} /> :
            !chats.length ? <EmptyState title="No chats yet" /> : (
             <Table>
               <TableHeader><TableRow>
