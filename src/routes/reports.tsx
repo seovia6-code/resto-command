@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { useDashboardData, useRestaurantId } from "@/lib/queries";
+import { useDashboardData, useRestaurantId, useIsAdmin } from "@/lib/queries";
 import { LoadingState } from "@/components/States";
 
 export const Route = createFileRoute("/reports")({
@@ -31,7 +31,8 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 
 function ReportsPage() {
   const { data: rid } = useRestaurantId();
-  const { data, isLoading } = useDashboardData(rid);
+  const { data: isAdmin } = useIsAdmin();
+  const { data, isLoading } = useDashboardData(rid, !!isAdmin);
 
   if (isLoading || !data) return <AppLayout title="Reports"><LoadingState /></AppLayout>;
 
