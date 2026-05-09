@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WhatsappDashboardRouteImport } from './routes/whatsapp-dashboard'
 import { Route as WebhooksRouteImport } from './routes/webhooks'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
@@ -22,6 +23,11 @@ import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api.publi
 import { Route as ApiPublicVapiWebhookRouteImport } from './routes/api.public.vapi-webhook'
 import { Route as ApiPublicPingWorkerRouteImport } from './routes/api.public.ping-worker'
 
+const WhatsappDashboardRoute = WhatsappDashboardRouteImport.update({
+  id: '/whatsapp-dashboard',
+  path: '/whatsapp-dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WebhooksRoute = WebhooksRouteImport.update({
   id: '/webhooks',
   path: '/webhooks',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/webhooks': typeof WebhooksRoute
+  '/whatsapp-dashboard': typeof WhatsappDashboardRoute
   '/api/public/ping-worker': typeof ApiPublicPingWorkerRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -108,6 +115,7 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/webhooks': typeof WebhooksRoute
+  '/whatsapp-dashboard': typeof WhatsappDashboardRoute
   '/api/public/ping-worker': typeof ApiPublicPingWorkerRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -123,6 +131,7 @@ export interface FileRoutesById {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/webhooks': typeof WebhooksRoute
+  '/whatsapp-dashboard': typeof WhatsappDashboardRoute
   '/api/public/ping-worker': typeof ApiPublicPingWorkerRoute
   '/api/public/vapi-webhook': typeof ApiPublicVapiWebhookRoute
   '/api/public/whatsapp-webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -139,6 +148,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/webhooks'
+    | '/whatsapp-dashboard'
     | '/api/public/ping-worker'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
@@ -153,6 +163,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/webhooks'
+    | '/whatsapp-dashboard'
     | '/api/public/ping-worker'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
@@ -167,6 +178,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/webhooks'
+    | '/whatsapp-dashboard'
     | '/api/public/ping-worker'
     | '/api/public/vapi-webhook'
     | '/api/public/whatsapp-webhook'
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
   WebhooksRoute: typeof WebhooksRoute
+  WhatsappDashboardRoute: typeof WhatsappDashboardRoute
   ApiPublicPingWorkerRoute: typeof ApiPublicPingWorkerRoute
   ApiPublicVapiWebhookRoute: typeof ApiPublicVapiWebhookRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
@@ -189,6 +202,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/whatsapp-dashboard': {
+      id: '/whatsapp-dashboard'
+      path: '/whatsapp-dashboard'
+      fullPath: '/whatsapp-dashboard'
+      preLoaderRoute: typeof WhatsappDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/webhooks': {
       id: '/webhooks'
       path: '/webhooks'
@@ -286,6 +306,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
   WebhooksRoute: WebhooksRoute,
+  WhatsappDashboardRoute: WhatsappDashboardRoute,
   ApiPublicPingWorkerRoute: ApiPublicPingWorkerRoute,
   ApiPublicVapiWebhookRoute: ApiPublicVapiWebhookRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
@@ -293,3 +314,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
