@@ -9,7 +9,7 @@ import {
   LineChart, Line, AreaChart, Area,
 } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useDashboardData, useRestaurantId } from "@/lib/queries";
+import { useDashboardData, useRestaurantId, useIsAdmin } from "@/lib/queries";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { fetchSummary, fetchOrders } from "@/api/dashboard";
