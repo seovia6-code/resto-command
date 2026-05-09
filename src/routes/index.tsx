@@ -101,13 +101,29 @@ function Dashboard() {
   return (
     <AppLayout title="Dashboard">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await Promise.all([
+                qc.invalidateQueries({ queryKey: ["worker"] }),
+                refetch(),
+              ]);
+            }}
+            disabled={isFetching}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            Resync
+          </Button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-          <StatCard label="Total Calls" value={stats.totalCalls.toLocaleString()} icon={PhoneCall} tone="info" />
-          <StatCard label="WhatsApp Chats" value={stats.totalWhatsApp.toLocaleString()} icon={MessageCircle} tone="success" />
-          <StatCard label="Bookings" value={stats.totalBookings} icon={CalendarCheck} tone="primary" />
-          <StatCard label="Orders" value={stats.totalOrders} icon={ShoppingBag} tone="accent" />
-          <StatCard label="Revenue" value={`₹${stats.totalRevenue.toLocaleString()}`} icon={IndianRupee} tone="success" />
-          <StatCard label="Failed Requests" value={stats.failedRequests} icon={AlertTriangle} tone="destructive" />
+          <StatCard to="/calls" label="Total Calls" value={stats.totalCalls.toLocaleString()} icon={PhoneCall} tone="info" />
+          <StatCard to="/chats" label="WhatsApp Chats" value={stats.totalWhatsApp.toLocaleString()} icon={MessageCircle} tone="success" />
+          <StatCard to="/bookings" label="Bookings" value={stats.totalBookings} icon={CalendarCheck} tone="primary" />
+          <StatCard to="/orders" label="Orders" value={stats.totalOrders} icon={ShoppingBag} tone="accent" />
+          <StatCard to="/reports" label="Revenue" value={`₹${stats.totalRevenue.toLocaleString()}`} icon={IndianRupee} tone="success" />
+          <StatCard to="/reports" label="Failed Requests" value={stats.failedRequests} icon={AlertTriangle} tone="destructive" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
