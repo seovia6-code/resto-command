@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid,
   AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { useDashboardData, useRestaurantId } from "@/lib/queries";
+import { useDashboardData, useRestaurantId, useIsAdmin } from "@/lib/queries";
 import { LoadingState } from "@/components/States";
 
 export const Route = createFileRoute("/reports")({
