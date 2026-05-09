@@ -41,3 +41,20 @@ export const fetchOrders = createServerFn({ method: "GET" }).handler(
     return data.results ?? [];
   },
 );
+
+export const fetchChats = createServerFn({ method: "GET" }).handler(
+  async () => {
+    const data = (await callWorker("/api/dashboard/chats?limit=100")) as {
+      results?: any[];
+    };
+    return (data.results ?? (Array.isArray(data) ? (data as any) : [])) as any[];
+  },
+);
+
+export const fetchChatMessages = createServerFn({ method: "GET" })
+  .inputValidator((data: { wa_from: string }) => data)
+  .handler(async ({ data }) => {
+    const path = `/api/dashboard/chats/${encodeURIComponent(data.wa_from)}/messages?limit=200`;
+    const res = (await callWorker(path)) as { results?: any[] };
+    return (res.results ?? (Array.isArray(res) ? (res as any) : [])) as any[];
+  });
