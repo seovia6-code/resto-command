@@ -31,7 +31,8 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 
 function ReportsPage() {
   const { data: rid } = useRestaurantId();
-  const { data, isLoading } = useDashboardData(rid);
+  const { data: isAdmin } = useIsAdmin();
+  const { data, isLoading } = useDashboardData(rid, !!isAdmin);
 
   if (isLoading || !data) return <AppLayout title="Reports"><LoadingState /></AppLayout>;
 
