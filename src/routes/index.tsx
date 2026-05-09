@@ -11,8 +11,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDashboardData, useRestaurantId, useIsAdmin } from "@/lib/queries";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchSummary, fetchOrders } from "@/api/dashboard";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -56,7 +58,8 @@ function RecentTable({ title, children }: { title: string; children: React.React
 function Dashboard() {
   const { data: rid, isLoading: ridLoading } = useRestaurantId();
   const { data: isAdmin } = useIsAdmin();
-  const { data, isLoading } = useDashboardData(rid, !!isAdmin);
+  const { data, isLoading, isFetching, refetch } = useDashboardData(rid, !!isAdmin);
+  const qc = useQueryClient();
 
   // Live data from the Cloudflare Worker (WhatsApp bridge)
   const summaryFn = useServerFn(fetchSummary);
@@ -98,13 +101,29 @@ function Dashboard() {
   return (
     <AppLayout title="Dashboard">
       <div className="space-y-6">
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await Promise.all([
+                qc.invalidateQueries({ queryKey: ["worker"] }),
+                refetch(),
+              ]);
+            }}
+            disabled={isFetching}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
+            Resync
+          </Button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
-          <StatCard label="Total Calls" value={stats.totalCalls.toLocaleString()} icon={PhoneCall} tone="info" />
-          <StatCard label="WhatsApp Chats" value={stats.totalWhatsApp.toLocaleString()} icon={MessageCircle} tone="success" />
-          <StatCard label="Bookings" value={stats.totalBookings} icon={CalendarCheck} tone="primary" />
-          <StatCard label="Orders" value={stats.totalOrders} icon={ShoppingBag} tone="accent" />
-          <StatCard label="Revenue" value={`₹${stats.totalRevenue.toLocaleString()}`} icon={IndianRupee} tone="success" />
-          <StatCard label="Failed Requests" value={stats.failedRequests} icon={AlertTriangle} tone="destructive" />
+          <StatCard to="/calls" label="Total Calls" value={stats.totalCalls.toLocaleString()} icon={PhoneCall} tone="info" />
+          <StatCard to="/chats" label="WhatsApp Chats" value={stats.totalWhatsApp.toLocaleString()} icon={MessageCircle} tone="success" />
+          <StatCard to="/bookings" label="Bookings" value={stats.totalBookings} icon={CalendarCheck} tone="primary" />
+          <StatCard to="/orders" label="Orders" value={stats.totalOrders} icon={ShoppingBag} tone="accent" />
+          <StatCard to="/reports" label="Revenue" value={`₹${stats.totalRevenue.toLocaleString()}`} icon={IndianRupee} tone="success" />
+          <StatCard to="/reports" label="Failed Requests" value={stats.failedRequests} icon={AlertTriangle} tone="destructive" />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

@@ -1,4 +1,5 @@
 import { LucideIcon } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
   trend?: "up" | "down";
   icon: LucideIcon;
   tone?: "primary" | "info" | "success" | "warning" | "destructive" | "accent";
+  to?: string;
 };
 
 const toneMap: Record<NonNullable<Props["tone"]>, string> = {
@@ -19,9 +21,9 @@ const toneMap: Record<NonNullable<Props["tone"]>, string> = {
   accent: "bg-accent text-accent-foreground",
 };
 
-export function StatCard({ label, value, change, trend, icon: Icon, tone = "primary" }: Props) {
-  return (
-    <div className="rounded-xl border bg-card p-4 sm:p-5 shadow-[var(--shadow-card)] transition hover:shadow-[var(--shadow-elegant)]">
+export function StatCard({ label, value, change, trend, icon: Icon, tone = "primary", to }: Props) {
+  const inner = (
+    <div className="rounded-xl border bg-card p-4 sm:p-5 shadow-[var(--shadow-card)] transition hover:shadow-[var(--shadow-elegant)] h-full">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs sm:text-sm text-muted-foreground font-medium">{label}</p>
@@ -43,4 +45,13 @@ export function StatCard({ label, value, change, trend, icon: Icon, tone = "prim
       </div>
     </div>
   );
+
+  if (to) {
+    return (
+      <Link to={to} className="block focus:outline-none focus:ring-2 focus:ring-ring rounded-xl">
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
 }
